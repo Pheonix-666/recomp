@@ -1,6 +1,4 @@
 import { useState, useRef } from 'react';
-import imageCompression from 'browser-image-compression';
-import { PDFDocument } from 'pdf-lib';
 import { Image as ImageIcon, FileText, Upload, Download, Settings2, Trash2 } from 'lucide-react';
 
 function App() {
@@ -66,6 +64,9 @@ function App() {
     setProgress(10);
     
     try {
+      const imageCompressionModule = await import('browser-image-compression');
+      const imageCompression = imageCompressionModule.default;
+
       const options = {
         maxSizeMB: 5,
         maxWidthOrHeight: 1920,
@@ -92,6 +93,7 @@ function App() {
     
     try {
       const arrayBuffer = await file.arrayBuffer();
+      const { PDFDocument } = await import('pdf-lib');
       const pdfDoc = await PDFDocument.load(arrayBuffer);
       setProgress(60);
       
@@ -125,7 +127,8 @@ function App() {
   return (
     <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-main)] py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
       <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-10">
+        <div className="flex flex-col items-center text-center mb-10">
+          <img src="/logo.svg" alt="HyperCompress Logo" className="w-20 h-20 mb-4 hover:scale-110 transition-transform duration-300 ease-out" />
           <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-purple-500 to-indigo-600 bg-clip-text text-transparent sm:text-5xl">
             HyperCompress
           </h1>
