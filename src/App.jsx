@@ -10,6 +10,10 @@ function App() {
 
   // Settings
   const [imageQuality, setImageQuality] = useState(0.8);
+  // Conversion state
+  const [conversionType, setConversionType] = useState('');
+  const [convertedFile, setConvertedFile] = useState(null);
+  const [isConverting, setIsConverting] = useState(false);
   
   const fileInputRef = useRef(null);
 
@@ -124,6 +128,87 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  const convertFile = async () => {
+    if (!file || !conversionType) return;
+    setIsConverting(true);
+    try {
+      // Load file as data URL
+      const dataUrlPromise = new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+      const dataUrl = await dataUrlPromise;
+
+      // Create image element
+      const img = new Image();
+      const imgLoadPromise = new Promise((res, rej) => {
+        img.onload = () => res();
+        img.onerror = (e) => rej(e);
+      });
+      img.src = dataUrl;
+      await imgLoadPromise;
+
+      // Draw onto canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas not supported');
+      ctx.drawImage(img, 0, 0);
+
+      let blob = null;
+      switch (conversionType) {
+        case 'image-png-to-jpg':
+          blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+          break;
+        case 'image-jpg-to-png':
+          blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+          break;
+        case 'image-png-to-webp':
+          blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp'));
+          break;
+        case 'svg-to-png':
+          // SVG is already rendered on canvas, export as PNG
+          blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+          break;
+        case 'txt-to-pdf':
+          // Convert plain text to PDF using pdf-lib
+          const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+          const pdfDoc = await PDFDocument.create();
+          const page = pdfDoc.addPage();
+          const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+          const text = await new Promise((resolve) => {
+            const tr = new FileReader();
+            tr.onload = () => resolve(tr.result);
+            tr.readAsText(file);
+          });
+          const { width, height } = page.getSize();
+          page.drawText(text, {
+            x: 50,
+            y: height - 50,
+            size: 12,
+            font,
+            color: rgb(0, 0, 0),
+          });
+          const pdfBytes = await pdfDoc.save();
+          blob = new Blob([pdfBytes], { type: 'application/pdf' });
+          break;
+        default:
+          alert('Unsupported conversion type');
+      }
+
+      if (blob) {
+        setConvertedFile(blob);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Conversion failed');
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text-main)] py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
       <div className="max-w-3xl mx-auto">
@@ -178,7 +263,7 @@ function App() {
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept={activeTab === 'image' ? 'image/*' : 'application/pdf'}
+                  accept={activeTab === 'image' ? 'image/*' : 'application/pdf,.docx,.html'}
                 />
                 <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full flex items-center justify-center mb-4">
                   <Upload className="w-8 h-8" />
@@ -214,6 +299,93 @@ function App() {
                 </div>
 
                 {/* Settings (Only for Image) */}
+                {activeTab === 'image' && !compressedFile && (
+                  <div className="p-4 border border-[var(--color-border)] rounded-lg">
+                    <div className="flex items-center mb-4">
+                      <Settings2 className="w-5 h-5 mr-2 text-purple-500" />
+                      <h3 className="font-medium">Compression Settings</h3>
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <label className="text-sm text-[var(--color-text-muted)]">Quality</label>
+                        <span className="text-sm font-medium">{Math.round(imageQuality * 100)}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.05"
+                        value={imageQuality}
+                        onChange={(e) => setImageQuality(parseFloat(e.target.value))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-purple-600"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Conversion (for both image and text files) */}
+                {file && !convertedFile && (
+                  <div className="mt-4 p-4 border border-[var(--color-border)] rounded-lg">
+                    <div className="flex items-center mb-4">
+                      <Settings2 className="w-5 h-5 mr-2 text-purple-500" />
+                      <h3 className="font-medium">Conversion</h3>
+                    </div>
+                    <select
+                      value={conversionType}
+                      onChange={(e) => setConversionType(e.target.value)}
+                      className="w-full mb-2 p-2 border border-[var(--color-border)] rounded bg-[var(--color-surface)] text-[var(--color-text-main)]"
+                    >
+                      <option value="">Select conversion</option>
+                      {/* Image conversions */}
+                      {activeTab === 'image' && (
+                        <>
+                          <option value="image-png-to-jpg">PNG → JPG</option>
+                          <option value="image-jpg-to-png">JPG → PNG</option>
+                          <option value="image-png-to-webp">PNG → WEBP</option>
+                          <option value="svg-to-png">SVG → PNG</option>
+                        </>
+                      )}
+                      {/* Text conversions */}
+                      {activeTab === 'pdf' && (
+                        <option value="txt-to-pdf">TXT → PDF</option>
+                      )}
+                    </select>
+                    <button
+                      onClick={convertFile}
+                      disabled={!conversionType || isConverting}
+                      className="w-full flex items-center justify-center py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded"
+                    >
+                      {isConverting ? 'Converting...' : 'Convert'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Show converted file result */}
+                {convertedFile && (
+                  <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg mt-4">
+                    <h3 className="text-blue-800 dark:text-blue-400 font-semibold mb-4 text-center">Conversion Complete!</h3>
+                    <div className="flex justify-center mb-4">
+                      <button
+                        onClick={() => {
+                          const url = URL.createObjectURL(convertedFile);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          const ext = conversionType.split('-').pop();
+                          a.download = `converted_${file.name.split('.').slice(0, -1).join('.')}.${ext}`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="flex items-center justify-center py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded"
+                      >
+                        Download Converted File
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Progress / Status */}
                 {activeTab === 'image' && !compressedFile && (
                   <div className="p-4 border border-[var(--color-border)] rounded-lg">
                     <div className="flex items-center mb-4">
