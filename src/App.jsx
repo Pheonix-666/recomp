@@ -1,6 +1,126 @@
 import { useState, useRef } from 'react';
 import { Image as ImageIcon, FileText, Upload, Download, Settings2, Trash2 } from 'lucide-react';
 
+function imageDataToBMP(imageData) {
+  const width = imageData.width;
+  const height = imageData.height;
+  const data = imageData.data;
+  const extraBytes = (4 - (width * 3) % 4) % 4;
+  const rgbSize = (width * 3 + extraBytes) * height;
+  const headerSize = 54;
+  const fileSize = headerSize + rgbSize;
+  
+  const buffer = new ArrayBuffer(fileSize);
+  const view = new DataView(buffer);
+  
+  // File Header
+  view.setUint16(0, 0x4D42, true); // BM
+  view.setUint32(2, fileSize, true);
+  view.setUint32(6, 0, true);
+  view.setUint32(10, headerSize, true);
+  
+  // Info Header
+  view.setUint32(14, 40, true);
+  view.setInt32(18, width, true);
+  view.setInt32(22, -height, true); // negative for top-down
+  view.setUint16(26, 1, true);
+  view.setUint16(28, 24, true); // 24-bit
+  view.setUint32(30, 0, true); // BI_RGB
+  view.setUint32(34, rgbSize, true);
+  view.setInt32(38, 2835, true);
+  view.setInt32(42, 2835, true);
+  view.setUint32(46, 0, true);
+  view.setUint32(50, 0, true);
+  
+  // Pixel Data
+  let offset = headerSize;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const pixelIdx = (y * width + x) * 4;
+      view.setUint8(offset++, data[pixelIdx + 2]); // B
+      view.setUint8(offset++, data[pixelIdx + 1]); // G
+      view.setUint8(offset++, data[pixelIdx]);     // R
+    }
+    for (let i = 0; i < extraBytes; i++) {
+      view.setUint8(offset++, 0);
+    }
+  }
+  return new Blob([buffer], { type: 'image/bmp' });
+}
+
+function recordGifToVideo(frames, width, height) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    
+    let mimeType = 'video/mp4';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'video/webm';
+    }
+    
+    const stream = canvas.captureStream(0);
+    const mediaRecorder = new MediaRecorder(stream, { mimeType });
+    const chunks = [];
+    
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+    
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: mimeType });
+      resolve({ blob, mimeType });
+    };
+    
+    mediaRecorder.start();
+    
+    let frameIdx = 0;
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    const drawNextFrame = () => {
+      if (frameIdx >= frames.length) {
+        setTimeout(() => {
+          mediaRecorder.stop();
+        }, 100);
+        return;
+      }
+      
+      const frame = frames[frameIdx];
+      const patchData = new ImageData(frame.patch, frame.dims.width, frame.dims.height);
+      const patchCanvas = document.createElement('canvas');
+      patchCanvas.width = frame.dims.width;
+      patchCanvas.height = frame.dims.height;
+      const patchCtx = patchCanvas.getContext('2d');
+      if (patchCtx) {
+        patchCtx.putImageData(patchData, 0, 0);
+      }
+      
+      if (frame.disposalType === 2) {
+        tempCtx.clearRect(frame.dims.left, frame.dims.top, frame.dims.width, frame.dims.height);
+      }
+      
+      tempCtx.drawImage(patchCanvas, frame.dims.left, frame.dims.top);
+      
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(tempCanvas, 0, 0);
+      
+      const track = stream.getVideoTracks()[0];
+      if (track && typeof track.requestFrame === 'function') {
+        track.requestFrame();
+      }
+      
+      frameIdx++;
+      setTimeout(drawNextFrame, frame.delay || 100);
+    };
+    
+    drawNextFrame();
+  });
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('image'); // 'image' or 'pdf'
   const [file, setFile] = useState(null);
@@ -25,6 +145,77 @@ function App() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const getAvailableConversions = () => {
+    if (!file) return [];
+    const ext = file.name.split('.').pop().toLowerCase();
+    
+    const mapping = {
+      'jpg': [
+        { value: 'png', label: 'PNG' },
+        { value: 'webp', label: 'WEBP' },
+        { value: 'bmp', label: 'BMP' },
+        { value: 'tiff', label: 'TIFF' },
+        { value: 'pdf', label: 'PDF' }
+      ],
+      'jpeg': [
+        { value: 'png', label: 'PNG' },
+        { value: 'webp', label: 'WEBP' },
+        { value: 'bmp', label: 'BMP' },
+        { value: 'tiff', label: 'TIFF' },
+        { value: 'pdf', label: 'PDF' }
+      ],
+      'png': [
+        { value: 'jpg', label: 'JPG' },
+        { value: 'webp', label: 'WEBP' },
+        { value: 'bmp', label: 'BMP' },
+        { value: 'tiff', label: 'TIFF' },
+        { value: 'pdf', label: 'PDF' }
+      ],
+      'webp': [
+        { value: 'jpg', label: 'JPG' },
+        { value: 'png', label: 'PNG' }
+      ],
+      'gif': [
+        { value: 'mp4', label: 'MP4' },
+        { value: 'webp', label: 'WEBP' },
+        { value: 'png', label: 'PNG' }
+      ],
+      'svg': [
+        { value: 'png', label: 'PNG' },
+        { value: 'jpg', label: 'JPG' },
+        { value: 'pdf', label: 'PDF' }
+      ],
+      'bmp': [
+        { value: 'jpg', label: 'JPG' },
+        { value: 'png', label: 'PNG' }
+      ],
+      'tiff': [
+        { value: 'jpg', label: 'JPG' },
+        { value: 'png', label: 'PNG' },
+        { value: 'pdf', label: 'PDF' }
+      ],
+      'tif': [
+        { value: 'jpg', label: 'JPG' },
+        { value: 'png', label: 'PNG' },
+        { value: 'pdf', label: 'PDF' }
+      ],
+      'heic': [
+        { value: 'jpg', label: 'JPG' },
+        { value: 'png', label: 'PNG' }
+      ],
+      'heif': [
+        { value: 'jpg', label: 'JPG' },
+        { value: 'png', label: 'PNG' }
+      ]
+    };
+
+    if (activeTab === 'pdf' && ext === 'txt') {
+      return [{ value: 'pdf', label: 'PDF' }];
+    }
+
+    return mapping[ext] || [];
+  };
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
@@ -40,14 +231,16 @@ function App() {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
+      const ext = droppedFile.name.split('.').pop().toLowerCase();
+      const validExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'tiff', 'tif', 'heic', 'heif'];
       
       // Basic validation based on active tab
-      if (activeTab === 'image' && !droppedFile.type.startsWith('image/')) {
+      if (activeTab === 'image' && !droppedFile.type.startsWith('image/') && !validExtensions.includes(ext)) {
         alert('Please drop an image file');
         return;
       }
-      if (activeTab === 'pdf' && droppedFile.type !== 'application/pdf') {
-        alert('Please drop a PDF file');
+      if (activeTab === 'pdf' && droppedFile.type !== 'application/pdf' && ext !== 'txt') {
+        alert('Please drop a valid file');
         return;
       }
       
@@ -132,70 +325,132 @@ function App() {
     if (!file || !conversionType) return;
     setIsConverting(true);
     try {
-      // Load file as data URL
-      const dataUrlPromise = new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
-      const dataUrl = await dataUrlPromise;
+      const sourceExt = file.name.split('.').pop().toLowerCase();
+      let decodedFileBlob = file;
 
-      // Create image element
-      const img = new Image();
-      const imgLoadPromise = new Promise((res, rej) => {
-        img.onload = () => res();
-        img.onerror = (e) => rej(e);
-      });
-      img.src = dataUrl;
-      await imgLoadPromise;
-
-      // Draw onto canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas not supported');
-      ctx.drawImage(img, 0, 0);
+      // Handle HEIC/HEIF decoding first
+      if (sourceExt === 'heic' || sourceExt === 'heif') {
+        const heic2anyModule = await import('heic2any');
+        const heic2any = heic2anyModule.default;
+        const result = await heic2any({ blob: file, toType: 'image/png' });
+        decodedFileBlob = Array.isArray(result) ? result[0] : result;
+      }
 
       let blob = null;
-      switch (conversionType) {
-        case 'image-png-to-jpg':
+
+      // Special case: GIF to MP4 (video recording)
+      if (sourceExt === 'gif' && conversionType === 'mp4') {
+        const arrayBuffer = await file.arrayBuffer();
+        const { parseGIF, decompressFrames } = await import('gifuct-js');
+        const gif = parseGIF(arrayBuffer);
+        const frames = decompressFrames(gif, true);
+        const result = await recordGifToVideo(frames, gif.lsd.width, gif.lsd.height);
+        blob = result.blob;
+      }
+
+      // If we don't have the final blob yet, we need to draw onto a canvas (except for raw text txt-to-pdf)
+      if (!blob) {
+        let canvas = null;
+        let width = 0;
+        let height = 0;
+
+        if (sourceExt === 'tiff' || sourceExt === 'tif') {
+          const arrayBuffer = await file.arrayBuffer();
+          const utifModule = await import('utif');
+          const UTIF = utifModule.default || utifModule;
+          const ifds = UTIF.decode(arrayBuffer);
+          UTIF.decodeImage(arrayBuffer, ifds[0]);
+          const rgba = UTIF.toRGBA8(ifds[0]);
+          width = ifds[0].width;
+          height = ifds[0].height;
+          canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          const imgData = new ImageData(new Uint8ClampedArray(rgba), width, height);
+          ctx.putImageData(imgData, 0, 0);
+        } else if (sourceExt === 'txt') {
+          // txt to pdf does not require canvas
+        } else {
+          // Standard image loading via Image element
+          const dataUrlPromise = new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(decodedFileBlob);
+          });
+          const dataUrl = await dataUrlPromise;
+
+          const img = new Image();
+          const imgLoadPromise = new Promise((res, rej) => {
+            img.onload = () => res();
+            img.onerror = (e) => rej(e);
+          });
+          img.src = dataUrl;
+          await imgLoadPromise;
+
+          canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Canvas not supported');
+          ctx.drawImage(img, 0, 0);
+        }
+
+        // Perform actual format conversion
+        if (conversionType === 'png') {
+          blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+        } else if (conversionType === 'jpg' || conversionType === 'jpeg') {
           blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-          break;
-        case 'image-jpg-to-png':
-          blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-          break;
-        case 'image-png-to-webp':
-          blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp'));
-          break;
-        case 'svg-to-png':
-          // SVG is already rendered on canvas, export as PNG
-          blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-          break;
-        case 'txt-to-pdf':
-          // Convert plain text to PDF using pdf-lib
-          const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
-          const pdfDoc = await PDFDocument.create();
-          const page = pdfDoc.addPage();
-          const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-          const text = await new Promise((resolve) => {
-            const tr = new FileReader();
-            tr.onload = () => resolve(tr.result);
-            tr.readAsText(file);
-          });
-          const { width, height } = page.getSize();
-          page.drawText(text, {
-            x: 50,
-            y: height - 50,
-            size: 12,
-            font,
-            color: rgb(0, 0, 0),
-          });
-          const pdfBytes = await pdfDoc.save();
-          blob = new Blob([pdfBytes], { type: 'application/pdf' });
-          break;
-        default:
-          alert('Unsupported conversion type');
+        } else if (conversionType === 'webp') {
+          blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.92));
+        } else if (conversionType === 'bmp') {
+          const ctx = canvas.getContext('2d');
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          blob = imageDataToBMP(imgData);
+        } else if (conversionType === 'tiff') {
+          const ctx = canvas.getContext('2d');
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const utifModule = await import('utif');
+          const UTIF = utifModule.default || utifModule;
+          const tiffBuffer = UTIF.encodeImage(imgData.data, canvas.width, canvas.height);
+          blob = new Blob([tiffBuffer], { type: 'image/tiff' });
+        } else if (conversionType === 'pdf') {
+          if (sourceExt === 'txt') {
+            const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+            const pdfDoc = await PDFDocument.create();
+            const page = pdfDoc.addPage();
+            const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const text = await new Promise((resolve) => {
+              const tr = new FileReader();
+              tr.onload = () => resolve(tr.result);
+              tr.readAsText(file);
+            });
+            const { width, height } = page.getSize();
+            page.drawText(text, {
+              x: 50,
+              y: height - 50,
+              size: 12,
+              font,
+              color: rgb(0, 0, 0),
+            });
+            const pdfBytes = await pdfDoc.save();
+            blob = new Blob([pdfBytes], { type: 'application/pdf' });
+          } else {
+            const pngDataUrl = canvas.toDataURL('image/png');
+            const { PDFDocument } = await import('pdf-lib');
+            const pdfDoc = await PDFDocument.create();
+            const page = pdfDoc.addPage([canvas.width, canvas.height]);
+            const pngImage = await pdfDoc.embedPng(pngDataUrl);
+            page.drawImage(pngImage, {
+              x: 0,
+              y: 0,
+              width: canvas.width,
+              height: canvas.height,
+            });
+            const pdfBytes = await pdfDoc.save();
+            blob = new Blob([pdfBytes], { type: 'application/pdf' });
+          }
+        }
       }
 
       if (blob) {
@@ -263,7 +518,7 @@ function App() {
                   className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept={activeTab === 'image' ? 'image/*' : 'application/pdf,.docx,.html'}
+                  accept={activeTab === 'image' ? 'image/*,.heic,.heif,.tiff,.tif' : 'application/pdf,.docx,.html,.txt'}
                 />
                 <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full flex items-center justify-center mb-4">
                   <Upload className="w-8 h-8" />
@@ -335,20 +590,12 @@ function App() {
                       onChange={(e) => setConversionType(e.target.value)}
                       className="w-full mb-2 p-2 border border-[var(--color-border)] rounded bg-[var(--color-surface)] text-[var(--color-text-main)]"
                     >
-                      <option value="">Select conversion</option>
-                      {/* Image conversions */}
-                      {activeTab === 'image' && (
-                        <>
-                          <option value="image-png-to-jpg">PNG → JPG</option>
-                          <option value="image-jpg-to-png">JPG → PNG</option>
-                          <option value="image-png-to-webp">PNG → WEBP</option>
-                          <option value="svg-to-png">SVG → PNG</option>
-                        </>
-                      )}
-                      {/* Text conversions */}
-                      {activeTab === 'pdf' && (
-                        <option value="txt-to-pdf">TXT → PDF</option>
-                      )}
+                      <option value="">Select conversion target</option>
+                      {getAvailableConversions().map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          To {opt.label}
+                        </option>
+                      ))}
                     </select>
                     <button
                       onClick={convertFile}
@@ -370,7 +617,7 @@ function App() {
                           const url = URL.createObjectURL(convertedFile);
                           const a = document.createElement('a');
                           a.href = url;
-                          const ext = conversionType.split('-').pop();
+                          const ext = conversionType;
                           a.download = `converted_${file.name.split('.').slice(0, -1).join('.')}.${ext}`;
                           document.body.appendChild(a);
                           a.click();
