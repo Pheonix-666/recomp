@@ -11,19 +11,47 @@ export default function RelatedTools({ toolIds }) {
   if (!tools.length) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
       {tools.map(tool => (
         <Link
           key={tool.id}
           to={`/${tool.slug}`}
-          className="flex items-center gap-3 p-4 bg-white border border-[var(--color-outline-variant)] rounded-xl hover:border-[var(--color-primary)] hover:shadow-md transition-all group"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '16px 18px',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid var(--border)',
+            borderRadius: '14px',
+            textDecoration: 'none',
+            transition: 'all 0.25s ease',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = 'rgba(230,57,70,0.35)';
+            e.currentTarget.style.background = 'rgba(230,57,70,0.04)';
+            e.currentTarget.style.transform = 'translateY(-3px)';
+            e.currentTarget.querySelector('.rt-icon').style.background = 'linear-gradient(135deg, #c1121f, #e63946)';
+            e.currentTarget.querySelector('.rt-icon').style.color = 'white';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = 'var(--border)';
+            e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.querySelector('.rt-icon').style.background = 'var(--brand-subtle)';
+            e.currentTarget.querySelector('.rt-icon').style.color = 'var(--brand)';
+          }}
         >
-          <div className="w-10 h-10 bg-[var(--color-surface-container-high)] text-[var(--color-primary)] rounded-lg flex items-center justify-center shrink-0 group-hover:bg-[var(--color-primary)] group-hover:text-white transition-all">
-            <span className="material-symbols-outlined text-xl">{tool.icon}</span>
+          <div className="rt-icon" style={{
+            width: '40px', height: '40px', borderRadius: '10px',
+            background: 'var(--brand-subtle)',
+            color: 'var(--brand)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, transition: 'all 0.25s ease',
+          }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{tool.icon}</span>
           </div>
-          <div>
-            <p className="font-semibold text-sm text-[var(--color-on-surface)]">{tool.title}</p>
-            <p className="text-xs text-[var(--color-on-surface-variant)] line-clamp-1">{tool.intro?.slice(0, 60)}…</p>
+          <div style={{ overflow: 'hidden' }}>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tool.title}</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tool.intro?.slice(0, 50)}…</p>
           </div>
         </Link>
       ))}

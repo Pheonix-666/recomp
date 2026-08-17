@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import DropZone from '../components/DropZone';
 import FileInfoRow from '../components/FileInfoRow';
@@ -35,11 +34,13 @@ export default function MergeTool() {
   if (result) return <ResultBanner resultBlob={result} fileName="merged.pdf" onReset={reset} />;
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <DropZone accept=".pdf" multi onFiles={fs => setFiles(prev => [...prev, ...fs])} />
       {files.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-[var(--color-on-surface-variant)]">{files.length} file{files.length > 1 ? 's' : ''} selected — will be merged in this order:</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            {files.length} file{files.length > 1 ? 's' : ''} selected — will be merged in this order:
+          </p>
           {files.map((f, i) => (
             <FileInfoRow key={i} f={f} onRemove={() => setFiles(prev => prev.filter((_, j) => j !== i))} />
           ))}
@@ -48,7 +49,8 @@ export default function MergeTool() {
             <button
               onClick={run}
               disabled={files.length < 2}
-              className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-md disabled:opacity-40"
+              className="btn-primary"
+              style={{ width: '100%', padding: '14px', fontSize: '15px' }}
             >
               Merge {files.length} PDF{files.length > 1 ? 's' : ''}
             </button>

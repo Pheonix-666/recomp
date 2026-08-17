@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const NAV_LINKS = [
   { label: 'Compress', href: '/pdf-compressor' },
@@ -11,70 +11,142 @@ const NAV_LINKS = [
 
 export default function NavBar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Close menu on navigation
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+
   return (
-    <header className="bg-white border-b border-[var(--color-outline-variant)] shadow-sm sticky top-0 z-50">
-      <div className="flex justify-between items-center w-full px-6 max-w-7xl mx-auto h-16">
+    <header
+      style={{
+        background: scrolled
+          ? 'rgba(8, 13, 26, 0.92)'
+          : 'rgba(8, 13, 26, 0.6)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        transition: 'background 0.3s ease, box-shadow 0.3s ease',
+        boxShadow: scrolled ? '0 4px 32px rgba(0,0,0,0.4)' : 'none',
+      }}
+    >
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px' }}>
+        
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 shrink-0">
-          <img src="/logo.svg" alt="PDF Precision logo" className="w-8 h-8" />
-          <span className="text-xl font-bold text-[var(--color-primary)] tracking-tight">PDF Precision</span>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', flexShrink: 0 }}>
+          <div style={{
+            width: '34px', height: '34px',
+            background: 'linear-gradient(135deg, #c1121f, #e63946)',
+            borderRadius: '10px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(230,57,70,0.4)',
+          }}>
+            <span className="material-symbols-outlined" style={{ color: 'white', fontSize: '18px', fontVariationSettings: "'FILL' 1" }}>picture_as_pdf</span>
+          </div>
+          <span style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>
+            PDF <span style={{ color: 'var(--brand)' }}>Precision</span>
+          </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6">
-          {NAV_LINKS.map(l => (
-            <Link
-              key={l.href}
-              to={l.href}
-              className={`text-sm font-medium transition-colors ${
-                location.pathname === l.href
-                  ? 'text-[var(--color-primary)]'
-                  : 'text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)]'
-              }`}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }} className="hidden md:flex">
+          {NAV_LINKS.map(l => {
+            const active = location.pathname === l.href;
+            return (
+              <Link
+                key={l.href}
+                to={l.href}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '14px',
+                  fontWeight: active ? 600 : 500,
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  color: active ? 'var(--brand)' : 'var(--text-secondary)',
+                  background: active ? 'var(--brand-subtle)' : 'transparent',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* CTA */}
-        <div className="hidden md:flex items-center gap-3">
-          <button className="text-sm font-medium text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)] px-3 py-1.5 transition-colors">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="hidden md:flex">
+          <button style={{
+            fontSize: '14px', fontWeight: 500,
+            color: 'var(--text-secondary)',
+            background: 'none', border: 'none',
+            padding: '6px 12px', cursor: 'pointer',
+            borderRadius: '8px', transition: 'all 0.2s ease',
+          }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+          >
             Log In
           </button>
-          <button className="bg-[var(--color-primary)] text-white px-5 py-2 rounded-lg text-sm font-semibold hover:opacity-90 active:scale-95 transition-all">
-            Get Pro
+          <button className="btn-primary" style={{ fontSize: '14px', padding: '8px 20px' }}>
+            Get Pro ✦
           </button>
         </div>
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden p-2 text-[var(--color-on-surface-variant)]"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
+          style={{
+            background: 'none', border: 'none',
+            color: 'var(--text-secondary)', cursor: 'pointer',
+            padding: '6px', borderRadius: '8px',
+            display: 'flex', alignItems: 'center',
+          }}
+          className="md:hidden"
         >
-          <span className="material-symbols-outlined">{menuOpen ? 'close' : 'menu'}</span>
+          <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+            {menuOpen ? 'close' : 'menu'}
+          </span>
         </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile Menu */}
       {menuOpen && (
-        <div className="md:hidden border-t border-[var(--color-outline-variant)] bg-white px-6 py-4 space-y-3">
+        <div style={{
+          borderTop: '1px solid var(--border)',
+          background: 'rgba(8, 13, 26, 0.97)',
+          padding: '16px 24px 20px',
+          animation: 'fadeUp 0.2s ease',
+        }}>
           {NAV_LINKS.map(l => (
             <Link
               key={l.href}
               to={l.href}
-              onClick={() => setMenuOpen(false)}
-              className="block text-sm font-medium text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
+              style={{
+                display: 'block', padding: '11px 0',
+                fontSize: '15px', fontWeight: 500,
+                color: location.pathname === l.href ? 'var(--brand)' : 'var(--text-secondary)',
+                textDecoration: 'none',
+                borderBottom: '1px solid var(--border)',
+              }}
             >
               {l.label}
             </Link>
           ))}
-          <div className="pt-3 border-t border-[var(--color-outline-variant)] flex gap-3">
-            <button className="flex-1 py-2 text-sm border border-[var(--color-outline-variant)] rounded-lg font-medium">Log In</button>
-            <button className="flex-1 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg font-semibold">Get Pro</button>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+            <button className="btn-secondary" style={{ flex: 1, padding: '10px' }}>Log In</button>
+            <button className="btn-primary" style={{ flex: 1, padding: '10px' }}>Get Pro ✦</button>
           </div>
         </div>
       )}

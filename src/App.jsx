@@ -11,9 +11,9 @@ import NotFoundPage from './pages/NotFoundPage';
 // Layout wraps all routes with NavBar, Footer, and scroll restoration
 function RootLayout() {
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--color-surface)]">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-base)' }}>
       <NavBar />
-      <main className="flex-grow flex flex-col items-center justify-start w-full">
+      <main style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
         <Outlet />
       </main>
       <Footer />

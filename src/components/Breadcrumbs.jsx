@@ -20,18 +20,30 @@ export default function Breadcrumbs({ items }) {
       <Helmet>
         <script type="application/ld+json">{JSON.stringify(schema)}</script>
       </Helmet>
-      <nav aria-label="Breadcrumb" className="text-sm text-[var(--color-on-surface-variant)] mb-6">
-        <ol className="flex items-center gap-1 flex-wrap">
+      <nav aria-label="Breadcrumb" style={{ marginBottom: '16px', textAlign: 'center' }}>
+        <ol style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', listStyle: 'none', padding: 0, margin: 0, flexWrap: 'wrap' }}>
           <li>
-            <Link to="/" className="hover:text-[var(--color-primary)] transition-colors">Home</Link>
+            <Link to="/" style={{ fontSize: '13px', color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--brand)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              Home
+            </Link>
           </li>
           {crumbs.map((c, i) => (
-            <li key={i} className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px] opacity-40">chevron_right</span>
+            <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--text-muted)', opacity: 0.5 }}>chevron_right</span>
               {i === crumbs.length - 1 ? (
-                <span className="text-[var(--color-on-surface)] font-medium" aria-current="page">{c.name}</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }} aria-current="page">
+                  {c.name}
+                </span>
               ) : (
-                <Link to={c.path} className="hover:text-[var(--color-primary)] transition-colors">{c.name}</Link>
+                <Link to={c.path} style={{ fontSize: '13px', color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.2s' }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--brand)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                >
+                  {c.name}
+                </Link>
               )}
             </li>
           ))}

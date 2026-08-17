@@ -37,7 +37,7 @@ export default function SignTool() {
     const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
     const { x, y } = getXY(e, rect);
-    ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#e0e7ff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.beginPath(); ctx.moveTo(lastPos.current.x, lastPos.current.y); ctx.lineTo(x, y); ctx.stroke();
     lastPos.current = { x, y };
   };
@@ -67,40 +67,76 @@ export default function SignTool() {
   if (!file) return <DropZone accept=".pdf" onFiles={fs => setFile(fs[0])} />;
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <FileInfoRow f={file} onRemove={reset} />
-      <div className="p-5 bg-[var(--color-surface-container-low)] rounded-xl border border-[var(--color-outline-variant)] space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-[var(--color-on-surface)]">Draw your signature:</p>
-          <button onClick={clearCanvas} className="text-xs text-[var(--color-error)] hover:underline font-medium">Clear</button>
+      <div style={{
+        padding: '20px',
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid var(--border)',
+        borderRadius: '16px',
+        display: 'flex', flexDirection: 'column', gap: '12px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Draw your signature:</p>
+          <button onClick={clearCanvas} style={{
+            fontSize: '12px', color: 'var(--error)', background: 'none', border: 'none',
+            cursor: 'pointer', fontWeight: 600, padding: '4px 8px', borderRadius: '6px',
+          }}>
+            Clear
+          </button>
         </div>
+
         <canvas
           ref={canvasRef} width={580} height={130}
-          className="w-full border border-[var(--color-outline-variant)] rounded-xl bg-white cursor-crosshair touch-none"
+          style={{
+            width: '100%',
+            border: '1px solid var(--border)',
+            borderRadius: '12px',
+            background: 'rgba(255,255,255,0.06)',
+            cursor: 'crosshair',
+            touchAction: 'none',
+          }}
           onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
           onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
         />
-        <div className="flex gap-3 items-end">
-          <label className="flex-1">
-            <span className="block text-xs font-semibold mb-1.5 text-[var(--color-on-surface-variant)]">Place on Page #</span>
-            <input type="number" min={1} value={page} onChange={e => setPage(+e.target.value || 1)}
-              className="w-full border border-[var(--color-outline-variant)] rounded-lg px-3 py-2 focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]" />
+
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+          <label style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+              Place on Page #
+            </span>
+            <input
+              type="number" min={1} value={page}
+              onChange={e => setPage(+e.target.value || 1)}
+              className="input-field"
+              style={{ width: '100%', padding: '10px 14px', fontSize: '14px' }}
+            />
           </label>
-          <button onClick={saveSig}
-            className="px-4 py-2 bg-white border border-[var(--color-outline-variant)] rounded-lg text-sm font-semibold hover:bg-[var(--color-surface-container-high)] transition-colors">
+          <button
+            onClick={saveSig}
+            className="btn-secondary"
+            style={{ padding: '10px 18px', fontSize: '14px', whiteSpace: 'nowrap' }}
+          >
             ✓ Use Signature
           </button>
         </div>
+
         {sigImage && (
-          <div className="flex items-center gap-2 text-sm text-green-700 font-medium">
-            <span className="material-symbols-outlined text-lg text-green-600">check_circle</span>Signature saved — ready to embed.
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+            Signature saved — ready to embed.
           </div>
         )}
       </div>
+
       {busy && <ProgressBar progress={70} label="Embedding signature…" />}
       {!busy && (
-        <button onClick={run} disabled={!sigImage}
-          className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-md disabled:opacity-40">
+        <button
+          onClick={run}
+          disabled={!sigImage}
+          className="btn-primary"
+          style={{ width: '100%', padding: '14px', fontSize: '15px' }}
+        >
           Sign PDF
         </button>
       )}

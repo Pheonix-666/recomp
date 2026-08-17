@@ -43,11 +43,11 @@ export default function CompressTool() {
   if (!file) return <DropZone accept=".pdf" onFiles={fs => setFile(fs[0])} />;
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <FileInfoRow f={file} onRemove={reset} />
       {busy && <ProgressBar progress={progress} label="Compressing PDF…" />}
       {!busy && (
-        <button onClick={run} className="w-full bg-[var(--color-primary)] text-white py-3 rounded-xl font-bold hover:opacity-90 transition-opacity shadow-md">
+        <button onClick={run} className="btn-primary" style={{ width: '100%', padding: '14px', fontSize: '15px' }}>
           Compress PDF
         </button>
       )}
