@@ -1,7 +1,9 @@
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TOOLS, CATEGORIES } from '../data/tools';
-import SEOHead, { buildOrganizationSchema, buildWebSiteSchema } from '../components/SEOHead';
+import SEOHead from '../components/SEOHead';
+import { buildOrganizationSchema, buildWebSiteSchema } from '../utils/seoSchemas';
 
 const STATS = [
   { icon: 'picture_as_pdf', value: '10M+', label: 'PDFs Processed' },

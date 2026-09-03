@@ -1,7 +1,8 @@
 import { Suspense, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { getToolBySlug } from '../data/tools';
-import SEOHead, { buildWebApplicationSchema, buildFAQSchema } from '../components/SEOHead';
+import SEOHead from '../components/SEOHead';
+import { buildWebApplicationSchema, buildFAQSchema } from '../utils/seoSchemas';
 import Breadcrumbs from '../components/Breadcrumbs';
 import HowToSection from '../components/HowToSection';
 import FAQAccordion from '../components/FAQAccordion';
@@ -13,15 +14,16 @@ export default function ToolPage() {
   const { toolSlug } = useParams();
   const tool = getToolBySlug(toolSlug);
 
+  // Map tool id to the lazy-loaded component
+  const ToolWidget = useMemo(() => {
+    if (!tool) return null;
+    const compName = tool.id.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('') + 'Tool';
+    return ToolComponents[compName] || ToolComponents.MockTool;
+  }, [tool]);
+
   if (!tool) {
     return <Navigate to="/404" replace />;
   }
-
-  // Map tool id to the lazy-loaded component
-  const ToolWidget = useMemo(() => {
-    const compName = tool.id.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('') + 'Tool';
-    return ToolComponents[compName] || ToolComponents.MockTool;
-  }, [tool.id]);
 
   const schemas = [buildWebApplicationSchema(tool)];
   if (tool.faqs?.length > 0) {

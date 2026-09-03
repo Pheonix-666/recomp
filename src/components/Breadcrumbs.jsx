@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { buildBreadcrumbSchema } from './SEOHead';
+import { buildBreadcrumbSchema } from '../utils/seoSchemas';
 import { Helmet } from 'react-helmet-async';
 
 /**

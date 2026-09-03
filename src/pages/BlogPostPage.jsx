@@ -1,6 +1,7 @@
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { getBlogBySlug, BLOGS } from '../data/blogs';
-import SEOHead, { buildArticleSchema } from '../components/SEOHead';
+import SEOHead from '../components/SEOHead';
+import { buildArticleSchema } from '../utils/seoSchemas';
 import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function BlogPostPage() {
